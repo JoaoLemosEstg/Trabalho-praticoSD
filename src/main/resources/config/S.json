@@ -1,0 +1,7 @@
+{
+  "nodeId": "S",
+  "listenPort": 5006,
+  "nextHop": {},
+  "dashboardPort": 6000,
+  "statsIntervalMs": 2000
+}

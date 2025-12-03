@@ -1,0 +1,10 @@
+{
+  "nodeId": "Cr3",
+  "listenPort": 5003,
+  "nextHop": {
+    "Cr2": { "host": "localhost", "port": 5002 },
+    "S":   { "host": "localhost", "port": 5006 }
+  },
+  "dashboardPort": 6000,
+  "statsIntervalMs": 2000
+}

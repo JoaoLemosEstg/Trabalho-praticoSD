@@ -14,7 +14,7 @@ public class Vehicle implements Serializable {
     private final List<NodeId> path;
 
     private final double entryTime;
-    private Double exitTime; // pode ser null até sair
+    private Double exitTime;
 
     public Vehicle(VehicleType type, NodeId entryPoint, List<NodeId> path, double entryTime) {
         this.id = UUID.randomUUID().toString();

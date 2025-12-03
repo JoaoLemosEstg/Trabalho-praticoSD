@@ -6,7 +6,7 @@ import java.util.Map;
 
 public class PortConfig {
 
-    // Porta TCP de cada nó (podes ajustar se quiseres)
+
     private static final Map<NodeId, Integer> PORTS = Map.of(
             NodeId.CR1, 5001,
             NodeId.CR2, 5002,

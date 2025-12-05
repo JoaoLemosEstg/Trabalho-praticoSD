@@ -3,6 +3,8 @@ package sd.traffic.node;
 import sd.traffic.common.StatsSnapshot;
 import sd.traffic.common.Vehicle;
 import sd.traffic.common.VehicleType;
+import sd.traffic.common.EventLog;
+
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -41,11 +43,13 @@ public class CrossroadProcess {
         // 1) Criar um semáforo por saída configurada em nextHop
         for (String nextNodeId : config.nextHop.keySet()) {
             SemaphoreController sc = new SemaphoreController(
-                    nextNodeId,
-                    3000, // greenMs  -> TODO: podes pôr no config
-                    3000, // redMs    -> idem
+                    config.nodeId,  // nodeId deste cruzamento
+                    nextNodeId,     // direção
+                    3000,
+                    3000,
                     this::dispatchVehicle
             );
+
             semaphores.put(nextNodeId, sc);
             sc.start();
         }
@@ -120,6 +124,13 @@ public class CrossroadProcess {
         // tempo de deslocamento na rua entre nós (t * fator do tipo)
         // tempo de deslocamento na rua entre nós (t * fator do tipo)
         long travelMs;
+        EventLog.log(
+                config.nodeId,
+                v.getId(),
+                "MOVE_START",
+                "to=" + next
+        );
+
         try {
             double factor = v.getType().travelTimeFactor();
             long base = config.baseTravelTimeMs; // definir no CrossroadConfig
@@ -132,10 +143,18 @@ public class CrossroadProcess {
             }
 
             Thread.sleep(travelMs);
+            EventLog.log(
+                    config.nodeId,
+                    v.getId(),
+                    "MOVE_END",
+                    "to=" + next + " travelMs=" + travelMs
+            );
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return;
         }
+
 
 
         // agora avançamos no caminho e enviamos para o nó seguinte

@@ -3,6 +3,8 @@ package sd.traffic.node;
 import sd.traffic.common.StatsSnapshot;
 import sd.traffic.common.Vehicle;
 import sd.traffic.common.VehicleType;
+import sd.traffic.common.EventLog;
+
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -51,6 +53,13 @@ public class SinkProcess {
 
             long dwell = exitTime - v.getArrivalTimeSystem();
             VehicleType type = v.getType();
+            EventLog.log(
+                    "S",
+                    v.getId(),
+                    "EXIT_SYSTEM",
+                    "type=" + type + " dwellMs=" + dwell
+            );
+
 
             synchronized (this) {
                 long c = count.get(type) + 1;

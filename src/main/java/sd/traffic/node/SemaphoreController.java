@@ -1,6 +1,8 @@
 package sd.traffic.node;
 
 import sd.traffic.common.Vehicle;
+import sd.traffic.common.EventLog;
+
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -12,6 +14,7 @@ public class SemaphoreController extends Thread {
 
     private final long greenMs;
     private final long redMs;
+    private final String nodeId;
 
     private volatile boolean green = false;
 
@@ -27,8 +30,9 @@ public class SemaphoreController extends Thread {
         void onVehicleReadyToLeave(Vehicle v);
     }
 
-    public SemaphoreController(String direction, long greenMs, long redMs,
+    public SemaphoreController(String nodeId,String direction, long greenMs, long redMs,
                                VehicleDispatcher dispatcher) {
+        this.nodeId = nodeId;
         this.direction = direction;
         this.greenMs = greenMs;
         this.redMs = redMs;
@@ -36,11 +40,19 @@ public class SemaphoreController extends Thread {
     }
 
     public void enqueue(Vehicle v) {
-        v.setEnterQueueTime(System.currentTimeMillis());
-
+        long now = System.currentTimeMillis();
+        v.setEnterQueueTime(now);
         fila.add(v);
         maxQueue = Math.max(maxQueue, fila.size());
+
+        EventLog.log(
+                nodeId,
+                v.getId(),
+                "QUEUE_ENTER",
+                "dir=" + direction + " queueSize=" + fila.size()
+        );
     }
+
 
 
     public int getQueueSize() { return fila.size(); }
@@ -60,7 +72,6 @@ public class SemaphoreController extends Thread {
                 while (System.currentTimeMillis() - start < greenMs) {
                     Vehicle v = fila.poll();
                     if (v != null) {
-
                         long now = System.currentTimeMillis();
                         long wait = now - v.getEnterQueueTime();
                         totalWaitTimeMs += wait;
@@ -68,18 +79,31 @@ public class SemaphoreController extends Thread {
                             maxWaitTimeMs = wait;
                         }
 
+                        EventLog.log(
+                                nodeId,
+                                v.getId(),
+                                "QUEUE_LEAVE",
+                                "dir=" + direction + " waitMs=" + wait
+                        );
 
                         v.setEnterRoadTime(now);
 
-                        // tempo de passagem no semáforo (tsem)
-                        long tsemMs = 500; // TODO: mete em config
+                        long tsemMs = 500; // tempo de passagem no semáforo
                         Thread.sleep(tsemMs);
+
+                        EventLog.log(
+                                nodeId,
+                                v.getId(),
+                                "SEM_PASS",
+                                "dir=" + direction + " tsemMs=" + tsemMs
+                        );
 
                         dispatcher.onVehicleReadyToLeave(v);
                         totalProcessed++;
                     } else {
                         Thread.sleep(50);
                     }
+
 
 
                 }

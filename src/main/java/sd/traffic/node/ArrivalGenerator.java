@@ -3,6 +3,8 @@ package sd.traffic.node;
 import sd.traffic.common.PathUtils;
 import sd.traffic.common.Vehicle;
 import sd.traffic.common.VehicleType;
+import sd.traffic.common.EventLog;
+
 
 import java.io.ObjectOutputStream;
 import java.net.Socket;
@@ -39,8 +41,18 @@ public class ArrivalGenerator extends Thread {
                 VehicleType type = randomVehicleType();
                 List<String> path = PathUtils.randomPathForEntry(entryId);
                 Vehicle v = new Vehicle(type, entryId, path, System.currentTimeMillis());
+
+                // log: chegada de veículo ao sistema
+                EventLog.log(
+                        "ENTRY_NODE",
+                        v.getId(),
+                        "ARRIVAL_SYSTEM",
+                        "entry=" + entryId + " type=" + type
+                );
+
                 v.advance();
                 sendToFirstNode(v);
+
             } catch (InterruptedException e) {
                 return;
             }

@@ -19,6 +19,9 @@ public class SemaphoreController extends Thread {
 
     private int maxQueue = 0;
     private long totalProcessed = 0;
+    private long totalWaitTimeMs = 0;
+    private long maxWaitTimeMs = 0;
+
 
     public interface VehicleDispatcher {
         void onVehicleReadyToLeave(Vehicle v);
@@ -33,13 +36,19 @@ public class SemaphoreController extends Thread {
     }
 
     public void enqueue(Vehicle v) {
+        v.setEnterQueueTime(System.currentTimeMillis());
+
         fila.add(v);
         maxQueue = Math.max(maxQueue, fila.size());
     }
 
+
     public int getQueueSize() { return fila.size(); }
     public int getMaxQueue() { return maxQueue; }
     public long getTotalProcessed() { return totalProcessed; }
+    public long getTotalWaitTimeMs() { return totalWaitTimeMs; }
+    public long getMaxWaitTimeMs() { return maxWaitTimeMs; }
+
 
     @Override
     public void run() {
@@ -51,14 +60,28 @@ public class SemaphoreController extends Thread {
                 while (System.currentTimeMillis() - start < greenMs) {
                     Vehicle v = fila.poll();
                     if (v != null) {
+
+                        long now = System.currentTimeMillis();
+                        long wait = now - v.getEnterQueueTime();
+                        totalWaitTimeMs += wait;
+                        if (wait > maxWaitTimeMs) {
+                            maxWaitTimeMs = wait;
+                        }
+
+
+                        v.setEnterRoadTime(now);
+
                         // tempo de passagem no semáforo (tsem)
                         long tsemMs = 500; // TODO: mete em config
                         Thread.sleep(tsemMs);
+
                         dispatcher.onVehicleReadyToLeave(v);
                         totalProcessed++;
                     } else {
                         Thread.sleep(50);
                     }
+
+
                 }
 
                 // Vermelho

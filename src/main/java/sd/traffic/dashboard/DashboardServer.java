@@ -20,6 +20,7 @@ public class DashboardServer {
     public void start() throws Exception {
         ServerSocket server = new ServerSocket(port);
         System.out.println("Dashboard server a ouvir na porta " + port);
+
         Thread printer = new Thread(this::printLoop);
         printer.setDaemon(true);
         printer.start();
@@ -46,11 +47,65 @@ public class DashboardServer {
             } catch (InterruptedException ignored) {}
 
             System.out.println("===== DASHBOARD =====");
+
             for (StatsSnapshot ss : lastStats.values()) {
-                System.out.printf("Nó %s | filas N:%d (max %d)  S:%d (max %d)  totalProc:%d%n",
-                        ss.nodeId, ss.filaN, ss.maxFilaN, ss.filaS, ss.maxFilaS, ss.totalVehiclesProcessed);
+                if ("S".equals(ss.nodeId)) {
+                    // Nó S → estatísticas globais da simulação
+                    System.out.println(">> Nó S (estatísticas globais)");
+
+                    printGlobalLine(
+                            "CARRO",
+                            ss.processedCarro,
+                            ss.MinCarro,
+                            ss.AvgCarro,
+                            ss.MaxCarro
+                    );
+
+                    printGlobalLine(
+                            "MOTO ",
+                            ss.processedMoto,
+                            ss.MinMoto,
+                            ss.AvgMoto,
+                            ss.MaxMoto
+                    );
+
+                    printGlobalLine(
+                            "CAMIAO",
+                            ss.processedCamiao,
+                            ss.MinCamiao,
+                            ss.AvgCamiao,
+                            ss.MaxCamiao
+                    );
+
+                } else {
+                    // Nó de cruzamento normal
+                    System.out.printf(
+                            "Nó %-3s | filaAtual=%4d  maxFila=%4d  avgFila=%6.2f  totalProc=%6d  |  MOTO=%4d  CARRO=%4d  CAMIAO=%4d%n",
+                            ss.nodeId,
+                            ss.currentQueue,
+                            ss.maxQueue,
+                            ss.avgQueue,
+                            ss.totalVehiclesProcessed,
+                            ss.processedMoto,
+                            ss.processedCarro,
+                            ss.processedCamiao
+                    );
+                }
             }
+
             System.out.println("=====================");
+        }
+    }
+
+    // ajuda a formatar a linha de estatísticas globais do nó S
+    private void printGlobalLine(String label, long count, long min, long avg, long max) {
+        if (count == 0) {
+            System.out.printf("  %-6s | count=0  dwell(ms)= - / - / - %n", label);
+        } else {
+            System.out.printf(
+                    "  %-6s | count=%4d  dwell(ms)= min=%6d  avg=%6d  max=%6d%n",
+                    label, count, min, avg, max
+            );
         }
     }
 

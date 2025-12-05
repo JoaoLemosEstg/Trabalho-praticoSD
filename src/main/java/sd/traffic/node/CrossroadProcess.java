@@ -2,28 +2,43 @@ package sd.traffic.node;
 
 import sd.traffic.common.StatsSnapshot;
 import sd.traffic.common.Vehicle;
+import sd.traffic.common.VehicleType;
 
-import java.io.*;
-import java.net.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 
 public class CrossroadProcess {
+    // estatísticas de tempos de deslocamento (ruas deste nó)
+    private long totalTravelTimeMs = 0;
+    private long totalTravelCount = 0;
+
 
     private final CrossroadConfig config;
 
     // chave = id do próximo nó (ex: "Cr2", "Cr4", "Cr5", "S")
     private final Map<String, SemaphoreController> semaphores = new HashMap<>();
 
+    // contagem de veículos por tipo que passaram por este cruzamento
+    private final Map<VehicleType, Long> processedByType = new EnumMap<>(VehicleType.class);
+
     private ServerSocket serverSocket;
 
     public CrossroadProcess(CrossroadConfig config) {
         this.config = config;
+        for (VehicleType t : VehicleType.values()) {
+            processedByType.put(t, 0L);
+        }
     }
 
     public void start() throws IOException {
-        // 🔹 1) Criar um semáforo por saída configurada em nextHop
-        //    (em vez de N/S hardcoded)
+        // 1) Criar um semáforo por saída configurada em nextHop
         for (String nextNodeId : config.nextHop.keySet()) {
             SemaphoreController sc = new SemaphoreController(
                     nextNodeId,
@@ -48,14 +63,11 @@ public class CrossroadProcess {
                     ObjectInputStream in = new ObjectInputStream(s.getInputStream());
                     Vehicle v = (Vehicle) in.readObject();
 
-                    // 🔹 2) Aqui o veículo já vem com currentNode = este nó
-                    //      (porque no nó anterior fizemos v.advance())
-                    //      O próximo nó a seguir a este é:
+                    // o veículo já vem com currentNode = este nó (porque no nó anterior fizemos v.advance())
                     String next = v.getNextNode();
 
                     if (next == null) {
                         // isto só faria sentido se este nó fosse o S;
-                        // para cruzamento normal, logar erro:
                         System.err.println("Vehicle " + v.getId() +
                                 " chegou a " + config.nodeId +
                                 " mas não tem próximo nó no caminho.");
@@ -80,16 +92,21 @@ public class CrossroadProcess {
     }
 
     private void dispatchVehicle(Vehicle v) {
-        // 🔹 3) Simular tempo de deslocamento entre este nó e o próximo
+        // registar que este veículo foi processado neste nó
+        synchronized (processedByType) {
+            VehicleType type = v.getType();
+            processedByType.put(type, processedByType.get(type) + 1);
+        }
+
+        // 3) Simular tempo de deslocamento entre este nó e o próximo
         String next = v.getNextNode(); // próximo nó ANTES de avançar
 
         if (next == null) {
-            // Se isto acontecer aqui, significa que este nó devia ser o S.
-            // Mas o S vai ser tratado num processo próprio (SinkProcess),
-            // portanto em princípio isto não deve acontecer.
+            // se isto acontecer aqui, significa que este nó devia ser o S
             v.setExitTimeSystem(System.currentTimeMillis());
             return;
         }
+
         HostPort hp = config.nextHop.get(next);
         InetSocketAddress addr =
                 new InetSocketAddress(hp.host, hp.port);
@@ -101,14 +118,25 @@ public class CrossroadProcess {
         }
 
         // tempo de deslocamento na rua entre nós (t * fator do tipo)
+        // tempo de deslocamento na rua entre nós (t * fator do tipo)
+        long travelMs;
         try {
             double factor = v.getType().travelTimeFactor();
             long base = config.baseTravelTimeMs; // definir no CrossroadConfig
-            long travelMs = (long) (base * factor);
+            travelMs = (long) (base * factor);
+
+            // acumular estatísticas de deslocamento
+            synchronized (this) {
+                totalTravelTimeMs += travelMs;
+                totalTravelCount++;
+            }
+
             Thread.sleep(travelMs);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            return;
         }
+
 
         // agora avançamos no caminho e enviamos para o nó seguinte
         v.advance();
@@ -130,23 +158,62 @@ public class CrossroadProcess {
                     snap.nodeId = config.nodeId;
                     snap.timestamp = System.currentTimeMillis();
 
-                    // 🔹 4) Agregar info de TODOS os semáforos deste nó
                     int totalQueue = 0;
                     int maxQueue = 0;
                     long totalProcessed = 0;
+
+                    long totalWaitTimeMs = 0;
+                    long maxWaitTimeMs = 0;
 
                     for (SemaphoreController sc : semaphores.values()) {
                         int q = sc.getQueueSize();
                         totalQueue += q;
                         maxQueue = Math.max(maxQueue, sc.getMaxQueue());
                         totalProcessed += sc.getTotalProcessed();
+
+                        totalWaitTimeMs += sc.getTotalWaitTimeMs();
+                        maxWaitTimeMs = Math.max(maxWaitTimeMs, sc.getMaxWaitTimeMs());
                     }
 
-                    // Aqui estou a reutilizar os campos que já tens;
-                    // se quiseres podes estender StatsSnapshot com mapas por saída.
-                    snap.filaN = totalQueue;   // por ex: fila total
-                    snap.maxFilaN = maxQueue;  // maior fila entre saídas
+
+                    // novos campos de filas no StatsSnapshot
+                    // novos campos de filas no StatsSnapshot
+                    snap.currentQueue = totalQueue;
+                    snap.maxQueue = maxQueue;
+                    snap.avgQueue = semaphores.isEmpty()
+                            ? 0.0
+                            : (double) totalQueue / semaphores.size();
+
+                    // se ainda quiseres aproveitar os antigos
+                    snap.filaN = totalQueue;
+                    snap.maxFilaN = maxQueue;
+
                     snap.totalVehiclesProcessed = totalProcessed;
+
+                    // tempo médio de espera na fila neste nó
+                    if (totalProcessed > 0) {
+                        snap.avgWaitTimeMs = (double) totalWaitTimeMs / totalProcessed;
+                    } else {
+                        snap.avgWaitTimeMs = 0.0;
+                    }
+                    snap.maxWaitTimeMs = maxWaitTimeMs;
+
+                    // tempo médio de deslocamento neste nó (entre nós)
+                    synchronized (this) {
+                        if (totalTravelCount > 0) {
+                            snap.avgTravelTimeMs = (double) totalTravelTimeMs / totalTravelCount;
+                        } else {
+                            snap.avgTravelTimeMs = 0.0;
+                        }
+                    }
+
+                    // contagem de veículos por tipo neste cruzamento
+                    synchronized (processedByType) {
+                        snap.processedMoto   = processedByType.get(VehicleType.MOTO);
+                        snap.processedCarro  = processedByType.get(VehicleType.CARRO);
+                        snap.processedCamiao = processedByType.get(VehicleType.CAMIAO);
+                    }
+
 
                     sendStatsToDashboard(snap);
                     Thread.sleep(config.statsIntervalMs);

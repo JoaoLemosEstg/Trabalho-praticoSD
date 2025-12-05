@@ -15,10 +15,11 @@ public class SinkProcess {
 
     private final CrossroadConfig config;
 
-    private final Map<VehicleType, Long> count = new EnumMap<>(VehicleType.class);
+
+    private final Map<VehicleType, Long> count     = new EnumMap<>(VehicleType.class);
     private final Map<VehicleType, Long> totalTime = new EnumMap<>(VehicleType.class);
-    private final Map<VehicleType, Long> minTime = new EnumMap<>(VehicleType.class);
-    private final Map<VehicleType, Long> maxTime = new EnumMap<>(VehicleType.class);
+    private final Map<VehicleType, Long> minTime   = new EnumMap<>(VehicleType.class);
+    private final Map<VehicleType, Long> maxTime   = new EnumMap<>(VehicleType.class);
 
     public SinkProcess(CrossroadConfig config) {
         this.config = config;
@@ -79,19 +80,40 @@ public class SinkProcess {
         t.start();
     }
 
+    // --------- AQUI É ONDE ENVIA AS ESTATÍSTICAS PARA O DASHBOARD ---------
     private void sendGlobalStats() {
         StatsSnapshot snap = new StatsSnapshot();
         snap.nodeId = "S";
         snap.timestamp = System.currentTimeMillis();
 
-        // Exemplo simples de reutilizar campos:
-        // filaN = total de CARROS
-        // filaS = total de MOTOS
-        // filaE = total de CAMIÕES
         synchronized (this) {
-            snap.filaN = count.get(VehicleType.CARRO).intValue();
-            snap.filaS = count.get(VehicleType.MOTO).intValue();
-            snap.filaE = count.get(VehicleType.CAMIAO).intValue();
+            long cMoto   = count.get(VehicleType.MOTO);
+            long cCarro  = count.get(VehicleType.CARRO);
+            long cCamiao = count.get(VehicleType.CAMIAO);
+
+            // quantidade de veículos de cada tipo que cruzaram o sistema
+            snap.processedMoto   = cMoto;
+            snap.processedCarro  = cCarro;
+            snap.processedCamiao = cCamiao;
+
+            // tempos mínimo / médio / máximo (dwelling time) em ms
+            if (cMoto > 0) {
+                snap.MinMoto = minTime.get(VehicleType.MOTO);
+                snap.MaxMoto = maxTime.get(VehicleType.MOTO);
+                snap.AvgMoto = totalTime.get(VehicleType.MOTO) / cMoto;
+            }
+
+            if (cCarro > 0) {
+                snap.MinCarro = minTime.get(VehicleType.CARRO);
+                snap.MaxCarro = maxTime.get(VehicleType.CARRO);
+                snap.AvgCarro = totalTime.get(VehicleType.CARRO) / cCarro;
+            }
+
+            if (cCamiao > 0) {
+                snap.MinCamiao = minTime.get(VehicleType.CAMIAO);
+                snap.MaxCamiao = maxTime.get(VehicleType.CAMIAO);
+                snap.AvgCamiao = totalTime.get(VehicleType.CAMIAO) / cCamiao;
+            }
         }
 
         try (Socket s = new Socket("localhost", config.dashboardPort)) {

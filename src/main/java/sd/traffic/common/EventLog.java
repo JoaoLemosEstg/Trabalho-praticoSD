@@ -6,10 +6,7 @@ import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-/**
- * Logger simples de eventos da simulação.
- * Escreve cada evento numa linha do ficheiro "events.log".
- */
+
 public class EventLog {
 
     private static final String LOG_FILE = "events.log";
@@ -17,14 +14,7 @@ public class EventLog {
     private static final SimpleDateFormat FMT =
             new SimpleDateFormat("HH:mm:ss.SSS");
 
-    /**
-     * Regista um evento.
-     *
-     * @param nodeId    ID do nó (E1, Cr1, S, ...)
-     * @param vehicleId ID do veículo (pode ser null para eventos sem veículo)
-     * @param type      tipo do evento (ex: ARRIVAL_SYSTEM, QUEUE_ENTER, ...)
-     * @param details   texto livre com mais informação
-     */
+
     public static void log(String nodeId, String vehicleId,
                            String type, String details) {
         long ts = System.currentTimeMillis();

@@ -13,8 +13,8 @@ import java.util.Random;
 
 public class ArrivalGenerator extends Thread {
 
-    private final String entryId; // "E1", ...
-    private final double lambda;  // veiculos / segundo
+    private final String entryId;
+    private final double lambda;
     private final String firstNodeId;
     private final String firstNodeHost;
     private final int firstNodePort;

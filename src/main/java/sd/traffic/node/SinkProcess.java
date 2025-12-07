@@ -89,7 +89,7 @@ public class SinkProcess {
         t.start();
     }
 
-    // --------- AQUI É ONDE ENVIA AS ESTATÍSTICAS PARA O DASHBOARD ---------
+
     private void sendGlobalStats() {
         StatsSnapshot snap = new StatsSnapshot();
         snap.nodeId = "S";
@@ -100,12 +100,12 @@ public class SinkProcess {
             long cCarro  = count.get(VehicleType.CARRO);
             long cCamiao = count.get(VehicleType.CAMIAO);
 
-            // quantidade de veículos de cada tipo que cruzaram o sistema
+
             snap.processedMoto   = cMoto;
             snap.processedCarro  = cCarro;
             snap.processedCamiao = cCamiao;
 
-            // tempos mínimo / médio / máximo (dwelling time) em ms
+
             if (cMoto > 0) {
                 snap.MinMoto = minTime.get(VehicleType.MOTO);
                 snap.MaxMoto = maxTime.get(VehicleType.MOTO);

@@ -66,7 +66,7 @@ public class SemaphoreController extends Thread {
     public void run() {
         while (true) {
             try {
-                // Verde
+
                 green = true;
                 long start = System.currentTimeMillis();
                 while (System.currentTimeMillis() - start < greenMs) {
@@ -108,7 +108,7 @@ public class SemaphoreController extends Thread {
 
                 }
 
-                // Vermelho
+
                 green = false;
                 Thread.sleep(redMs);
 

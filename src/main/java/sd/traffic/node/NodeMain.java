@@ -29,8 +29,7 @@ public class NodeMain {
 
             System.out.println(">>> Iniciando nó de entradas...");
 
-            // Aqui criamos geradores de veículos
-            // que enviam para Cr1, Cr2 e Cr3 (portas definidas nos JSONs que eu fiz!)
+
             ArrivalGenerator g1 = new ArrivalGenerator("E1", 0.3,
                     "Cr1", "localhost", 5001);
             ArrivalGenerator g2 = new ArrivalGenerator("E2", 0.3,

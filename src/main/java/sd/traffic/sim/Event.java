@@ -3,7 +3,7 @@ package sd.traffic.sim;
 import sd.traffic.common.Vehicle;
 
 public class Event implements Comparable<Event> {
-    private final long time;  // em ms de relógio de simulação
+    private final long time;
     private final EventType type;
     private final Vehicle vehicle;
     private final String nodeId;
